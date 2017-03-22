@@ -40,21 +40,36 @@ function askMrRockbot(name) {
     return new Promise((res,rej)=>{
         console.log("sending a publish");
         cb = (m) => {
-            console.log("got the message",m);
+            var mm = m.message.response;
+            console.log("got the message", mm);
             cb = null;
-            res(m.message.response);
+            res(mm);
         };
-        pubnub.publish({
-            channel: 'cook-message',
-            message: {
-                //"original": "tell me a joke",
-                "original":`What is ${name}?`,
-                "originalLanguage": "english"
-            }
-        },
-        function(status, response) {
-            console.log("published", status, response);
-        });
+
+        if(name) {
+            pubnub.publish({
+                    channel: 'cook-message',
+                    message: {
+                        //"original": "tell me a joke",
+                        "original": `What is ${name}?`,
+                        "originalLanguage": "english"
+                    }
+                },
+                function (status, response) {
+                    //console.log("published", status, response);
+                });
+        } else {
+            pubnub.publish({
+                    channel: 'cook-message',
+                    message: {
+                        "original": "tell me a joke",
+                        "originalLanguage": "english"
+                    }
+                },
+                function (status, response) {
+                    //console.log("published", status, response);
+                });
+        }
     });
 }
 
@@ -82,11 +97,22 @@ let jazzCon = function (app) {
     require('./amazonIntents/cancel')(app);
     //require('./customIntents/ronSwansonQuote.js')(app);
 
+    app.intent('joke', (request, response) => {
+        return askMrRockbot().then((ans)=>{
+            console.log("doing the joke");
+            app.makeCard("a joke", response);
+            return response.say(ans.text)
+                .shouldEndSession(false, 'Should I look up something else?')
+                .send();
+        });
+    });
+
     app.intent('lookup', {
         slots: { NAME: 'NAME' }
     }, (request, response) => {
         let name = request.slot('NAME');
         return askMrRockbot(name).then((ans)=>{
+            console.log("doing the lookup");
             app.makeCard(name, response);
             return response.say(ans.text)
                 .shouldEndSession(false, 'Should I look up something else?')

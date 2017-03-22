@@ -1,2 +1,2 @@
-lookup tell me a joke
+joke tell me a joke
 lookup what is {NAME}
