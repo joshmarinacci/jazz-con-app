@@ -79,6 +79,7 @@ let jazzCon = function (app) {
      *      audioPlayer
      **/
     require('./customIntents/launch.js')(app);
+    require('./amazonIntents/cancel')(app);
     //require('./customIntents/ronSwansonQuote.js')(app);
 
     app.intent('lookup', {
