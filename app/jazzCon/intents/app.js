@@ -1,16 +1,66 @@
 'use strict';
 const makeCard = require('./lib/makeCard.js'),
-    ronSwansonApi = require('./lib/ronSwansonApi.js'),
+    //ronSwansonApi = require('./lib/ronSwansonApi.js'),
     _ = require('lodash');
 
 /**
   * Watercooler contains all of the custom and built in intents we are using for the skill.
 **/
 
+var PubNub = require('pubnub');
+
+var pubnub = new PubNub({
+    publishKey:"pub-c-91ff2cc0-42ff-4783-abfd-e6283ff5348b",
+    subscribeKey:"sub-c-b89ea32a-79f1-11e6-9195-02ee2ddab7fe",
+});
+console.log("listening to ");
+var cb = null;
+pubnub.addListener({
+    status: function(statusEvent) {
+        console.log("status event", statusEvent);
+        if (statusEvent.category === "PNConnectedCategory") {
+            //setTimeout(sendIt,1000);
+        }
+    },
+    message: function(message) {
+        console.log("New Message!!", message);
+        if(cb) cb(message);
+    },
+    presence: function(presenceEvent) {
+        // handle presence
+    }
+});
+console.log("Subscribing..");
+pubnub.subscribe({
+    channels: ['chatbot-response']
+});
+
+
+function askMrRockbot(name) {
+    return new Promise((res,rej)=>{
+        console.log("sending a publish");
+        cb = (m) => {
+            console.log("got the message",m);
+            cb = null;
+            res(m.message.response);
+        };
+        pubnub.publish({
+            channel: 'cook-message',
+            message: {
+                //"original": "tell me a joke",
+                "original":`What is ${name}?`,
+                "originalLanguage": "english"
+            }
+        },
+        function(status, response) {
+            console.log("published", status, response);
+        });
+    });
+}
 
 let jazzCon = function (app) {
     app.makeCard = makeCard;
-    app.ronSwansonApi = ronSwansonApi;
+    //app.ronSwansonApi = ronSwansonApi;
     // app.audiofiles = audiofiles;
     app._ = _;
 
@@ -29,7 +79,21 @@ let jazzCon = function (app) {
      *      audioPlayer
      **/
     require('./customIntents/launch.js')(app);
-    require('./customIntents/ronSwansonQuote.js')(app);
+    //require('./customIntents/ronSwansonQuote.js')(app);
+
+    app.intent('lookup', {
+        slots: { NAME: 'NAME' }
+    }, (request, response) => {
+        let name = request.slot('NAME');
+        return askMrRockbot(name).then((ans)=>{
+            app.makeCard(name, response);
+            return response.say(ans.text)
+                .shouldEndSession(false, 'Should I look up something else?')
+                .send();
+        });
+    });
+
+
 
     /**
      *  Amazon built-in intents:
